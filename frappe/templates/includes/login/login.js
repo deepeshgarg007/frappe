@@ -12,6 +12,19 @@ login.bind_events = function() {
 		login.route();
 	});
 
+	$("#login_password").on('input', function() {
+		var input = document.getElementById("login_password");
+
+		var text = document.getElementById("caps-message");
+
+		input.addEventListener("keyup", function(event) {
+			if (event.getModifierState("CapsLock")) {
+				text.style.display = "block";
+			} else {
+				text.style.display = "none"
+			}
+		});
+	});
 
 	$(".form-login").on("submit", function(event) {
 		event.preventDefault();

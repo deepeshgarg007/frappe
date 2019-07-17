@@ -137,3 +137,10 @@ p {
   position: absolute;
   z-index: 2;
 }
+
+#caps-message {
+  display: none;
+  color: #ffad58;
+  margin-bottom: -15px;
+  font-size: 15px
+}
