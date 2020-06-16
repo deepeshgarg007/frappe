@@ -61,7 +61,9 @@
   "hide_footer_in_auto_email_reports",
   "chat",
   "enable_chat",
-  "use_socketio_to_upload_file"
+  "use_socketio_to_upload_file",
+  "section_break_58",
+  "mock_date"
  ],
  "fields": [
   {
@@ -422,12 +424,21 @@
    "fieldname": "enable_onboarding",
    "fieldtype": "Check",
    "label": "Enable Onboarding"
+  },
+  {
+   "fieldname": "section_break_58",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "mock_date",
+   "fieldtype": "Date",
+   "label": "Mock Date"
   }
  ],
  "icon": "fa fa-cog",
  "issingle": 1,
  "links": [],
- "modified": "2020-05-01 19:21:15.496065",
+ "modified": "2020-06-16 11:48:23.907607",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "System Settings",

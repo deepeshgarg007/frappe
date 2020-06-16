@@ -18,7 +18,6 @@ from six.moves.urllib.parse import quote, urljoin
 from html2text import html2text
 from markdown2 import markdown, MarkdownError
 from six import iteritems, text_type, string_types, integer_types
-import mock
 
 DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M:%S.%f"
@@ -36,7 +35,12 @@ def getdate(string_date=None):
 	"""
 
 	if not string_date:
-		return get_datetime('2020-05-15').date()
+		mock_date = frappe.db.get_singles_value('System Settings', 'mock_date')
+		if mock_date:
+			return getdate(mock_date)
+		else:
+			return get_datetime().date()
+
 	if isinstance(string_date, datetime.datetime):
 		return string_date.date()
 
@@ -134,11 +138,6 @@ def time_diff_in_hours(string_ed_date, string_st_date):
 	return round(float(time_diff(string_ed_date, string_st_date).total_seconds()) / 3600, 6)
 
 def now_datetime():
-
-	mock_date = frappe.db.get_singles_value('System Settings', 'mock_date')
-	if mock_date:
-		datetime.datetime.utcnow = mock.Mock(datetime.datetime(mock_date))
-
 	dt = convert_utc_to_user_timezone(datetime.datetime.utcnow())
 	return dt.replace(tzinfo=None)
 
