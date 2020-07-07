@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 
-import frappe
+import frappe, json
 from frappe.model.document import Document
 from frappe.desk.form import assign_to
 import frappe.cache_manager
@@ -42,6 +42,9 @@ class AssignmentRule(Document):
 		assign_to.clear(doc.get('doctype'), doc.get('name'))
 
 		user = self.get_user()
+		
+		if not user:
+			return
 
 		assign_to.add(dict(
 			assign_to = [user],
@@ -78,36 +81,37 @@ class AssignmentRule(Document):
 		'''
 		Get next user based on round robin
 		'''
-
-		# first time, or last in list, pick the first
-		if not self.last_user or self.last_user == self.users[-1].user:
-			return self.users[0].user
-
-		# find out the next user in the list
-		for i, d in enumerate(self.users):
-			if self.last_user == d.user:
-				return self.users[i+1].user
-
-		# bad last user, assign to the first one
-		return self.users[0].user
+		user_order = self.users
+		if self.last_user:
+			for i, d in enumerate(self.users):
+				if self.last_user == d.user:
+					user_order = list(self.users[i:] + self.users[:i])
+					user_order.append(user_order.pop(0))
+					break
+		for user in user_order:
+			if frappe.get_value('User', user.user, 'suspend_all_auto_assignment'):
+				continue
+			return user.user
 
 	def get_user_load_balancing(self):
 		'''Assign to the user with least number of open assignments'''
 		counts = []
 		for d in self.users:
-			counts.append(dict(
-				user = d.user,
-				count = frappe.db.count('ToDo', dict(
-					reference_type = self.document_type,
-					owner = d.user,
-					status = "Open"))
-			))
+			if not frappe.get_value('User', d.user, 'suspend_all_auto_assignment'):
+				counts.append(dict(
+					user = d.user,
+					count = frappe.db.count('ToDo', dict(
+						reference_type = self.document_type,
+						owner = d.user,
+						status = "Open"))
+				))
 
 		# sort by dict value
 		sorted_counts = sorted(counts, key = lambda k: k['count'])
 
 		# pick the first user
-		return sorted_counts[0].get('user')
+		if sorted_counts:
+			return sorted_counts[0].get('user')
 
 	def safe_eval(self, fieldname, doc):
 		try:
@@ -140,7 +144,6 @@ def get_assignments(doc):
 
 @frappe.whitelist()
 def bulk_apply(doctype, docnames):
-	import json
 	docnames = json.loads(docnames)
 
 	background = len(docnames) > 5
@@ -240,3 +243,13 @@ def get_repeated(values):
 			if value not in diff:
 				diff.append(str(value))
 	return " ".join(diff)
+
+@frappe.whitelist()
+def bulk_assignment(user):
+	assignment_rules = frappe.get_all('Assignment Rule', filters={ 'disabled':0 })
+	for assignment_rule in assignment_rules:
+		rule = frappe.get_doc('Assignment Rule', assignment_rule)
+		if user in list(x.user for x in rule.users):
+			unassign_docs = frappe.get_all(rule.document_type, or_filters = [["_assign", "=", "[]"], ["_assign", "=", ""]])
+			unassign_docs = list(x['name'] for x in unassign_docs)
+			bulk_apply(rule.document_type, json.dumps(unassign_docs))
