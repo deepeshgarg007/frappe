@@ -287,3 +287,5 @@ frappe.patches.v13_0.email_unsubscribe
 execute:frappe.delete_doc("DocType", "Onboarding Slide")
 execute:frappe.delete_doc("DocType", "Onboarding Slide Field")
 execute:frappe.delete_doc("DocType", "Onboarding Slide Help Link")
+execute:frappe.reload_doc('core', 'doctype', 'doctype')
+execute:frappe.reload_doc('core', 'doctype', 'share_permissions')
