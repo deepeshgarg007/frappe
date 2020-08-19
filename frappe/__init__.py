@@ -23,7 +23,7 @@ if PY2:
 	reload(sys)
 	sys.setdefaultencoding("utf-8")
 
-__version__ = '13.0.0-beta.3'
+__version__ = '13.0.0-beta.5'
 __title__ = "Frappe Framework"
 
 local = Local()
@@ -1707,3 +1707,7 @@ def mock(type, size=1, locale='en'):
 
 	from frappe.chat.util import squashify
 	return squashify(results)
+
+def validate_and_sanitize_search_inputs(fn):
+	from frappe.desk.search import validate_and_sanitize_search_inputs as func
+	return func(fn)
