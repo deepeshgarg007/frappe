@@ -45,6 +45,7 @@ class Importer:
 			file_path or data_import.google_sheets_url or data_import.import_file,
 			self.template_options,
 			self.import_type,
+			data_import=self.data_import
 		)
 
 	def get_data_for_import_preview(self):
@@ -309,7 +310,7 @@ class Importer:
 
 
 class ImportFile:
-	def __init__(self, doctype, file, template_options=None, import_type=None):
+	def __init__(self, doctype, file, template_options=None, import_type=None, data_import=None):
 		self.doctype = doctype
 		self.template_options = template_options or frappe._dict(
 			column_to_field_map=frappe._dict()
@@ -317,6 +318,7 @@ class ImportFile:
 		self.column_to_field_map = self.template_options.column_to_field_map
 		self.import_type = import_type
 		self.warnings = []
+		self.data_import = data_import
 
 		self.file_doc = self.file_path = self.google_sheets_url = None
 		if isinstance(file, frappe.string_types):
@@ -369,9 +371,10 @@ class ImportFile:
 				continue
 
 			if not header:
-				header = Header(i, row, self.doctype, self.raw_data, self.column_to_field_map)
+				header = Header(i, row, self.doctype, self.raw_data, self.column_to_field_map,
+					data_import=self.data_import)
 			else:
-				row_obj = Row(i, row, self.doctype, header, self.import_type)
+				row_obj = Row(i, row, self.doctype, header, self.import_type, data_import=self.data_import)
 				data.append(row_obj)
 
 		self.header = header
@@ -545,7 +548,7 @@ class ImportFile:
 class Row:
 	link_values_exist_map = {}
 
-	def __init__(self, index, row, doctype, header, import_type):
+	def __init__(self, index, row, doctype, header, import_type, data_import=None):
 		self.index = index
 		self.row_number = index + 1
 		self.doctype = doctype
@@ -553,6 +556,7 @@ class Row:
 		self.header = header
 		self.import_type = import_type
 		self.warnings = []
+		self.data_import = data_import
 
 		len_row = len(self.data)
 		len_columns = len(self.header.columns)
@@ -609,7 +613,9 @@ class Row:
 			new_doc.update(doc)
 			doc = new_doc
 
-		self.check_mandatory_fields(doctype, doc, table_df)
+		if not self.data_import.dealership:
+			self.check_mandatory_fields(doctype, doc, table_df)
+
 		return doc
 
 	def validate_value(self, value, col):
@@ -628,7 +634,7 @@ class Row:
 				)
 				return
 
-		elif df.fieldtype == "Link":
+		elif df.fieldtype == "Link" and not self.data_import.dealership:
 			exists = self.link_exists(value, df)
 			if not exists:
 				msg = _("Value {0} missing for {1}").format(
@@ -773,11 +779,13 @@ class Row:
 
 
 class Header(Row):
-	def __init__(self, index, row, doctype, raw_data, column_to_field_map=None):
+	def __init__(self, index, row, doctype, raw_data, column_to_field_map=None, data_import=None):
 		self.index = index
 		self.row_number = index + 1
 		self.data = row
 		self.doctype = doctype
+		self.data_import = data_import
+
 		column_to_field_map = column_to_field_map or frappe._dict()
 
 		self.seen = []
@@ -787,7 +795,7 @@ class Header(Row):
 			column_values = [get_item_at_index(r, j) for r in raw_data]
 			map_to_field = column_to_field_map.get(str(j))
 			column = Column(
-				j, header, self.doctype, column_values, map_to_field, self.seen
+				j, header, self.doctype, column_values, map_to_field, self.seen, data_import=self.data_import
 			)
 			self.seen.append(header)
 			self.columns.append(column)
@@ -828,7 +836,7 @@ class Column:
 	seen = []
 	fields_column_map = {}
 
-	def __init__(self, index, header, doctype, column_values, map_to_field=None, seen=[]):
+	def __init__(self, index, header, doctype, column_values, map_to_field=None, seen=[], data_import=None):
 		self.index = index
 		self.column_number = index + 1
 		self.doctype = doctype
@@ -836,6 +844,7 @@ class Column:
 		self.column_values = column_values
 		self.map_to_field = map_to_field
 		self.seen = seen
+		self.data_import = data_import
 
 		self.date_format = None
 		self.df = None
@@ -955,7 +964,7 @@ class Column:
 		if not self.df:
 			return
 
-		if self.df.fieldtype == 'Link':
+		if self.df.fieldtype == 'Link' and not self.data_import.dealership:
 			# find all values that dont exist
 			values = list(set([cstr(v) for v in self.column_values[1:] if v]))
 			exists = [d.name for d in frappe.db.get_all(self.df.options, filters={'name': ('in', values)})]
