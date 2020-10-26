@@ -452,6 +452,10 @@ class ImportFile:
 			data_without_first_row = data[1:]
 			for row in data_without_first_row:
 				row_values = row.get_values(parent_column_indexes)
+				# all parent values same
+				if self.data_import.dealership and parent_row_values == row_values:
+					rows.append(row)
+					continue
 				# if the row is blank, it's a child row doc
 				if all([v in INVALID_VALUES for v in row_values]):
 					rows.append(row)
@@ -615,6 +619,12 @@ class Row:
 
 		if not self.data_import.dealership:
 			self.check_mandatory_fields(doctype, doc, table_df)
+
+		if hasattr(doc, 'dealership') and self.data_import.dealership:
+			doc['dealership'] = self.data_import.dealership
+
+		if hasattr(doc, 'record_type') and self.data_import.record_type:
+			doc['record_type'] = self.data_import.record_type
 
 		return doc
 
