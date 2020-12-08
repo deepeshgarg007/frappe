@@ -1246,6 +1246,7 @@ def guess_date_format(date_string):
 		r"%d-%m-%y",
 		r"%m-%d-%y",
 		r"%y-%m-%d",
+		r"%y-%b-%d",
 		r"%d/%m/%Y",
 		r"%m/%d/%Y",
 		r"%Y/%m/%d",
