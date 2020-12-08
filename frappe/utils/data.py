@@ -1240,6 +1240,7 @@ def generate_hash(*args, **kwargs):
 
 def guess_date_format(date_string):
 	DATE_FORMATS = [
+		r"%d/%b/%y",
 		r"%d-%m-%Y",
 		r"%m-%d-%Y",
 		r"%Y-%m-%d",
