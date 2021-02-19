@@ -373,6 +373,7 @@ export default class GridRow {
 
 		// no text editor in grid
 		if (df.fieldtype=='Text Editor') {
+			df = Object.assign({}, df);
 			df.fieldtype = 'Text';
 		}
 
@@ -393,11 +394,16 @@ export default class GridRow {
 		// sync get_query
 		field.get_query = this.grid.get_field(df.fieldname).get_query;
 
-		var field_on_change_function = field.df.onchange;
-		field.df.onchange = function(e) {
-			field_on_change_function && field_on_change_function(e);
-			me.grid.grid_rows[this.doc.idx - 1].refresh_field(this.df.fieldname);
-		};
+		if (!field.df.onchange_modified) {
+			var field_on_change_function = field.df.onchange;
+			field.df.onchange = function(e) {
+				field_on_change_function && field_on_change_function(e);
+				me.grid.grid_rows[this.doc.idx - 1].refresh_field(this.df.fieldname);
+			};
+
+			field.df.onchange_modified = true;
+		}
+
 		field.refresh();
 		if(field.$input) {
 			field.$input
@@ -562,13 +568,15 @@ export default class GridRow {
 		this.wrapper.removeClass("grid-row-open");
 	}
 	open_prev() {
-		if(this.grid.grid_rows[this.doc.idx-2]) {
-			this.grid.grid_rows[this.doc.idx-2].toggle_view(true);
+		const row_index = this.wrapper.index();
+		if (this.grid.grid_rows[row_index - 1]) {
+			this.grid.grid_rows[row_index - 1].toggle_view(true);
 		}
 	}
 	open_next() {
-		if(this.grid.grid_rows[this.doc.idx]) {
-			this.grid.grid_rows[this.doc.idx].toggle_view(true);
+		const row_index = this.wrapper.index();
+		if (this.grid.grid_rows[row_index + 1]) {
+			this.grid.grid_rows[row_index + 1].toggle_view(true);
 		} else {
 			this.grid.add_new_row(null, null, true);
 		}

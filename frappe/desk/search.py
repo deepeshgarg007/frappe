@@ -141,7 +141,7 @@ def search_widget(doctype, txt, query=None, searchfield=None, start=0,
 
 			# find relevance as location of search term from the beginning of string `name`. used for sorting results.
 			formatted_fields.append("""locate({_txt}, `tab{doctype}`.`name`) as `_relevance`""".format(
-				_txt=frappe.db.escape((txt or "").replace("%", "")), doctype=doctype))
+				_txt=frappe.db.escape((txt or "").replace("%", "").replace("@", "")), doctype=doctype))
 
 
 			# In order_by, `idx` gets second priority, because it stores link count
@@ -150,7 +150,8 @@ def search_widget(doctype, txt, query=None, searchfield=None, start=0,
 			# 2 is the index of _relevance column
 			order_by = "_relevance, {0}, `tab{1}`.idx desc".format(order_by_based_on_meta, doctype)
 
-			ignore_permissions = True if doctype == "DocType" else (cint(ignore_user_permissions) and has_permission(doctype))
+			ptype = 'select' if frappe.only_has_select_perm(doctype) else 'read'
+			ignore_permissions = True if doctype == "DocType" else (cint(ignore_user_permissions) and has_permission(doctype, ptype=ptype))
 
 			if doctype in UNTRANSLATED_DOCTYPES:
 				page_length = None

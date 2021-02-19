@@ -185,10 +185,10 @@ frappe.ui.form.Toolbar = Class.extend({
 		return this.page.add_dropdown(label);
 	},
 	set_indicator: function() {
-		if(this.frm.save_disabled)
-			return;
-
 		var indicator = frappe.get_indicator(this.frm.doc);
+		if (this.frm.save_disabled && indicator && [__('Saved'), __('Not Saved')].includes(indicator[0])) {
+			return;
+		}
 		if(indicator) {
 			this.page.set_indicator(indicator[0], indicator[1]);
 		} else {
@@ -272,12 +272,12 @@ frappe.ui.form.Toolbar = Class.extend({
 			});
 		}
 
-		if (frappe.user_roles.includes("System Manager") && me.frm.meta.issingle === 0) {
+		if (frappe.user_roles.includes("System Manager")) {
 			let is_doctype_form = me.frm.doctype === 'DocType';
 			let doctype = is_doctype_form ? me.frm.docname : me.frm.doctype;
 			let is_doctype_custom = is_doctype_form ? me.frm.doc.custom : false;
 
-			if (doctype != 'DocType' && !is_doctype_custom) {
+			if (doctype != 'DocType' && !is_doctype_custom && me.frm.meta.issingle === 0) {
 				this.page.add_menu_item(__("Customize"), function() {
 					if (me.frm.meta && me.frm.meta.custom) {
 						frappe.set_route('Form', 'DocType', doctype);
@@ -441,9 +441,23 @@ frappe.ui.form.Toolbar = Class.extend({
 				me.frm.page.set_view('main');
 			}, 'octicon octicon-pencil');
 		} else if(status === "Cancel") {
-			this.page.set_secondary_action(__(status), function() {
-				me.frm.savecancel(this);
-			}, "octicon octicon-circle-slash");
+			let add_cancel_button = () => {
+				this.page.set_secondary_action(__(status), function() {
+					me.frm.savecancel(this);
+				}, "octicon octicon-circle-slash");
+			};
+			if (this.has_workflow()) {
+				frappe.xcall(
+					'frappe.model.workflow.can_cancel_document', {
+						'doctype': this.frm.doc.doctype,
+					}).then((can_cancel) => {
+					if (can_cancel) {
+						add_cancel_button();
+					}
+				});
+			} else {
+				add_cancel_button();
+			}
 		} else {
 			var click = {
 				"Save": function() {

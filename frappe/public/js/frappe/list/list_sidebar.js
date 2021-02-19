@@ -13,7 +13,6 @@ frappe.views.ListSidebar = class ListSidebar {
 	constructor(opts) {
 		$.extend(this, opts);
 		this.make();
-		this.cat_tags = [];
 	}
 
 	make() {
@@ -88,6 +87,14 @@ frappe.views.ListSidebar = class ListSidebar {
 		// show image link if image_view
 		if (this.list_view.meta.image_field) {
 			this.sidebar.find('.list-link[data-view="Image"]').removeClass('hide');
+			show_list_link = true;
+		}
+		
+		if (this.list_view.settings.get_coords_method ||
+			(this.list_view.meta.fields.find(i => i.fieldname === "latitude") &&
+			this.list_view.meta.fields.find(i => i.fieldname === "longitude")) ||
+			(this.list_view.meta.fields.find(i => i.fieldname === 'location' && i.fieldtype == 'Geolocation'))) {
+			this.sidebar.find('.list-link[data-view="Map"]').removeClass('hide');
 			show_list_link = true;
 		}
 
@@ -210,7 +217,7 @@ frappe.views.ListSidebar = class ListSidebar {
 			let email_account = (account.email_id == "All Accounts") ? "All Accounts" : account.email_account;
 			let route = ["List", "Communication", "Inbox", email_account].join('/');
 			let display_name = ["All Accounts", "Sent Mail", "Spam", "Trash"].includes(account.email_id) ? __(account.email_id) : account.email_id;
-			
+
 			if (!divider) {
 				this.get_divider().appendTo($dropdown);
 				divider = true;
@@ -240,10 +247,6 @@ frappe.views.ListSidebar = class ListSidebar {
 			list_view: this.list_view,
 			page: this.page
 		});
-	}
-
-	get_cat_tags() {
-		return this.cat_tags;
 	}
 
 	get_stats() {
@@ -324,33 +327,6 @@ frappe.views.ListSidebar = class ListSidebar {
 					});
 			})
 			.appendTo(this.sidebar.find(".list-stats-dropdown"));
-	}
-
-	set_fieldtype(df) {
-
-		// scrub
-		if (df.fieldname == "docstatus") {
-			df.fieldtype = "Select",
-			df.options = [
-				{ value: 0, label: "Draft" },
-				{ value: 1, label: "Submitted" },
-				{ value: 2, label: "Cancelled" },
-			];
-		} else if (df.fieldtype == 'Check') {
-			df.fieldtype = 'Select';
-			df.options = [{ value: 0, label: 'No' },
-				{ value: 1, label: 'Yes' }
-			];
-		} else if (['Text', 'Small Text', 'Text Editor', 'Code', 'Tag', 'Comments',
-			'Dynamic Link', 'Read Only', 'Assign'
-		].indexOf(df.fieldtype) != -1) {
-			df.fieldtype = 'Data';
-		} else if (df.fieldtype == 'Link' && this.$w.find('.condition').val() != "=") {
-			df.fieldtype = 'Data';
-		}
-		if (df.fieldtype === "Data" && (df.options || "").toLowerCase() === "email") {
-			df.options = null;
-		}
 	}
 
 	reload_stats() {

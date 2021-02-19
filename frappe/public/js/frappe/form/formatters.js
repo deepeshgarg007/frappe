@@ -50,7 +50,15 @@ frappe.form.formatters = {
 		return frappe.form.formatters._right(value==null ? "" : cint(value), options)
 	},
 	Percent: function(value, docfield, options) {
-		return frappe.form.formatters._right(flt(value, 2) + "%", options)
+		const precision = (
+			docfield.precision
+			|| cint(
+				frappe.boot.sysdefaults
+				&& frappe.boot.sysdefaults.float_precision
+			)
+			|| 2
+		);
+		return frappe.form.formatters._right(flt(value, precision) + "%", options);
 	},
 	Rating: function(value) {
 		return `<span class="rating">
@@ -106,7 +114,7 @@ frappe.form.formatters = {
 		if(frappe.form.link_formatters[doctype]) {
 			// don't apply formatters in case of composite (parent field of same type)
 			if (doc && doctype !== doc.doctype) {
-				value = frappe.form.link_formatters[doctype](value, doc);
+				value = frappe.form.link_formatters[doctype](value, doc, docfield);
 			}
 		}
 
@@ -120,11 +128,16 @@ frappe.form.formatters = {
 			return repl('<a onclick="%(onclick)s">%(value)s</a>',
 				{onclick: docfield.link_onclick.replace(/"/g, '&quot;'), value:value});
 		} else if(docfield && doctype) {
-			return `<a class="grey"
-				href="#Form/${encodeURIComponent(doctype)}/${encodeURIComponent(original_value)}"
-				data-doctype="${doctype}"
-				data-name="${original_value}">
-				${__(options && options.label || value)}</a>`
+			if (!frappe.model.can_select(doctype) && frappe.model.can_read(doctype)) {
+				return `<a class="grey"
+					href="#Form/${encodeURIComponent(doctype)}/${encodeURIComponent(original_value)}"
+					data-doctype="${doctype}"
+					data-name="${original_value}">
+					${__(options && options.label || value)}</a>`;
+			} else {
+				return value;
+			}
+
 		} else {
 			return value;
 		}
@@ -305,7 +318,7 @@ frappe.format = function(value, df, options, doc) {
 		formatted = frappe.dom.remove_script_and_style(formatted);
 
 	return formatted;
-}
+};
 
 frappe.get_format_helper = function(doc) {
 	var helper = {
@@ -317,4 +330,9 @@ frappe.get_format_helper = function(doc) {
 	};
 	$.extend(helper, doc);
 	return helper;
-}
+};
+
+frappe.form.link_formatters['User'] = function(value, doc, docfield) {
+	let full_name = doc && (doc.full_name || (docfield && doc[`${docfield.fieldname}_full_name`]));
+	return full_name || value;
+};

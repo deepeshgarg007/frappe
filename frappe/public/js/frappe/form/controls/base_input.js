@@ -20,7 +20,7 @@ frappe.ui.form.ControlInput = frappe.ui.form.Control.extend({
 					<div class="control-input-wrapper">\
 						<div class="control-input"></div>\
 						<div class="control-value like-disabled-input" style="display: none;"></div>\
-						<p class="help-box small text-muted hidden-xs"></p>\
+						<p class="help-box small text-muted"></p>\
 					</div>\
 				</div>\
 			</div>').appendTo(this.parent);
@@ -132,18 +132,6 @@ frappe.ui.form.ControlInput = frappe.ui.form.Control.extend({
 		this.$input && this.$input.on("change", this.change || function(e) {
 			me.parse_validate_and_set_in_model(me.get_input_value(), e);
 		});
-	},
-	bind_focusout: function() {
-		// on touchscreen devices, scroll to top
-		// so that static navbar and page head don't overlap the input
-		if (frappe.dom.is_touchscreen()) {
-			var me = this;
-			this.$input && this.$input.on("focusout", function() {
-				if (frappe.dom.is_touchscreen()) {
-					frappe.utils.scroll_to(me.$wrapper);
-				}
-			});
-		}
 	},
 	set_label: function(label) {
 		if(label) this.df.label = label;

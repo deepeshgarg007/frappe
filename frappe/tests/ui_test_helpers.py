@@ -9,6 +9,9 @@ def create_if_not_exists(doc):
 	:param doc: dict of field value pairs. can be a list of dict for multiple records.
 	'''
 
+	if not frappe.local.dev_server:
+		frappe.throw('This method can only be accessed in development', frappe.PermissionError)
+
 	doc = frappe.parse_json(doc)
 
 	if not isinstance(doc, list):
@@ -83,6 +86,24 @@ def create_doctype(name, fields):
 	frappe.get_doc({
 		"doctype": "DocType",
 		"module": "Core",
+		"custom": 1,
+		"fields": fields,
+		"permissions": [{
+			"role": "System Manager",
+			"read": 1
+		}],
+		"name": name
+	}).insert()
+
+@frappe.whitelist()
+def create_child_doctype(name, fields):
+	fields = frappe.parse_json(fields)
+	if frappe.db.exists('DocType', name):
+		return
+	frappe.get_doc({
+		"doctype": "DocType",
+		"module": "Core",
+		"istable": 1,
 		"custom": 1,
 		"fields": fields,
 		"permissions": [{

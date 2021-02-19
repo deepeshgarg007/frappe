@@ -13,15 +13,16 @@ from frappe.utils.user import get_system_managers
 from bs4 import BeautifulSoup
 import frappe.permissions
 import frappe.share
-import re
-import json
-
+import frappe.defaults
 from frappe.website.utils import is_signup_enabled
 from frappe.utils.background_jobs import enqueue
 
 STANDARD_USERS = ("Guest", "Administrator")
 
-class MaxUsersReachedError(frappe.ValidationError): pass
+
+class MaxUsersReachedError(frappe.ValidationError):
+	pass
+
 
 class User(Document):
 	__new_password = None
@@ -74,6 +75,7 @@ class User(Document):
 		self.validate_user_email_inbox()
 		ask_pass_update()
 		self.validate_roles()
+		self.validate_allowed_modules()
 		self.validate_user_image()
 
 		if self.language == "Loading...":
@@ -84,9 +86,18 @@ class User(Document):
 
 	def validate_roles(self):
 		if self.role_profile_name:
-				role_profile = frappe.get_doc('Role Profile', self.role_profile_name)
-				self.set('roles', [])
-				self.append_roles(*[role.role for role in role_profile.roles])
+			role_profile = frappe.get_doc('Role Profile', self.role_profile_name)
+			self.set('roles', [])
+			self.append_roles(*[role.role for role in role_profile.roles])
+
+	def validate_allowed_modules(self):
+		if self.module_profile:
+			module_profile = frappe.get_doc('Module Profile', self.module_profile)
+			self.set('block_modules', [])
+			for d in module_profile.get('block_modules'):
+				self.append('block_modules', {
+					'module': d.module
+				})
 
 	def validate_user_image(self):
 		if self.user_image and len(self.user_image) > 2000:
@@ -97,15 +108,20 @@ class User(Document):
 		self.share_with_self()
 		clear_notifications(user=self.name)
 		frappe.clear_cache(user=self.name)
+		now=frappe.flags.in_test or frappe.flags.in_install
 		self.send_password_notification(self.__new_password)
 		frappe.enqueue(
 			'frappe.core.doctype.user.user.create_contact',
 			user=self,
 			ignore_mandatory=True,
-			now=frappe.flags.in_test or frappe.flags.in_install
+			now=now
 		)
 		if self.name not in ('Administrator', 'Guest') and not self.user_image:
-			frappe.enqueue('frappe.core.doctype.user.user.update_gravatar', name=self.name)
+			frappe.enqueue('frappe.core.doctype.user.user.update_gravatar', name=self.name, now=now)
+
+		# Set user selected timezone
+		if self.time_zone:
+			frappe.defaults.set_default("time_zone", self.time_zone, self.name)
 
 	def has_website_permission(self, ptype, user, verbose=False):
 		"""Returns true if current user is the session user"""
@@ -225,6 +241,11 @@ class User(Document):
 	def reset_password(self, send_email=False, password_expired=False):
 		from frappe.utils import random_string, get_url
 
+		rate_limit = frappe.db.get_single_value("System Settings", "password_reset_limit")
+
+		if rate_limit:
+			check_password_reset_limit(self.name, rate_limit)
+
 		key = random_string(32)
 		self.db_set("reset_password_key", key)
 
@@ -236,6 +257,7 @@ class User(Document):
 		if send_email:
 			self.password_reset_mail(link)
 
+		update_password_reset_limit(self.name)
 		return link
 
 	def get_other_system_managers(self):
@@ -1030,6 +1052,11 @@ def get_role_profile(role_profile):
 	roles = frappe.get_doc('Role Profile', {'role_profile': role_profile})
 	return roles.roles
 
+@frappe.whitelist()
+def get_module_profile(module_profile):
+	module_profile = frappe.get_doc('Module Profile', {'module_profile_name': module_profile})
+	return module_profile.get('block_modules')
+
 def update_roles(role_profile):
 	users = frappe.get_all('User', filters={'role_profile_name': role_profile})
 	role_profile = frappe.get_doc('Role Profile', role_profile)
@@ -1110,3 +1137,16 @@ def generate_keys(user):
 
 		return {"api_secret": api_secret}
 	frappe.throw(frappe._("Not Permitted"), frappe.PermissionError)
+
+def update_password_reset_limit(user):
+	generated_link_count = get_generated_link_count(user)
+	generated_link_count += 1
+	frappe.cache().hset("password_reset_link_count", user, generated_link_count)
+
+def check_password_reset_limit(user, rate_limit):
+	generated_link_count = get_generated_link_count(user)
+	if generated_link_count >= rate_limit:
+		frappe.throw(_("You have reached the hourly limit for generating password reset links. Please try again later."))
+
+def get_generated_link_count(user):
+	return cint(frappe.cache().hget("password_reset_link_count", user)) or 0

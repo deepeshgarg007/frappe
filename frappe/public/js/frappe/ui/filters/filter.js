@@ -54,7 +54,7 @@ frappe.ui.Filter = class {
 			this.filters_config = frappe.boot.additional_filters_config;
 			for (let key of Object.keys(this.filters_config)) {
 				const filter = this.filters_config[key];
-				this.conditions.push([key, __(`{0}`, [filter.label])]);
+				this.conditions.push([key, __(filter.label)]);
 				for (let fieldtype of Object.keys(this.invalid_condition_map)) {
 					if (!filter.valid_for_fieldtypes.includes(fieldtype)) {
 						this.invalid_condition_map[fieldtype].push(key);
@@ -518,7 +518,7 @@ frappe.ui.filter_utils = {
 			['Date', 'Datetime', 'DateRange', 'Select'].includes(df.fieldtype)
 		) {
 			df.fieldtype = 'Select';
-			df.options = this.get_timespan_options(['Last', 'Today', 'This', 'Next']);
+			df.options = this.get_timespan_options(['Last', 'Yesterday', 'Today', 'Tomorrow', 'This', 'Next']);
 		}
 		if (condition === 'is') {
 			df.fieldtype = 'Select';
@@ -533,7 +533,6 @@ frappe.ui.filter_utils = {
 	get_timespan_options(periods) {
 		const period_map = {
 			Last: ['Week', 'Month', 'Quarter', '6 months', 'Year'],
-			Today: null,
 			This: ['Week', 'Month', 'Quarter', 'Year'],
 			Next: ['Week', 'Month', 'Quarter', '6 months', 'Year'],
 		};
@@ -542,13 +541,13 @@ frappe.ui.filter_utils = {
 			if (period_map[period]) {
 				period_map[period].forEach((p) => {
 					options.push({
-						label: __(`{0} {1}`, [period, p]),
+						label: `${period} ${p}`,
 						value: `${period.toLowerCase()} ${p.toLowerCase()}`,
 					});
 				});
 			} else {
 				options.push({
-					label: __(`{0}`, [period]),
+					label: __(period),
 					value: `${period.toLowerCase()}`,
 				});
 			}
