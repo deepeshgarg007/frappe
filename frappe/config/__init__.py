@@ -29,13 +29,13 @@ def get_modules_from_all_apps_for_user(user=None):
 
 	return allowed_modules_list
 
-def get_modules_from_all_apps():
+def get_modules_from_all_apps(ignore_config=False):
 	modules_list = []
 	for app in frappe.get_installed_apps():
-		modules_list += get_modules_from_app(app)
+		modules_list += get_modules_from_app(app, ignore_config)
 	return modules_list
 
-def get_modules_from_app(app):
+def get_modules_from_app(app, ignore_config=False):
 	try:
 		modules = frappe.get_attr(app + '.config.desktop.get_data')() or {}
 	except ImportError:
@@ -67,7 +67,8 @@ def get_modules_from_app(app):
 				to_add = False
 
 			# Check if config
-			if is_module(m) and not config_exists(app, frappe.scrub(module_name)):
+			if is_module(m) and not config_exists(app, frappe.scrub(module_name)) \
+				and not ignore_config:
 				to_add = False
 
 			if "condition" in m and not m["condition"]:
